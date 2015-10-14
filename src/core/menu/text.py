@@ -1,8 +1,9 @@
 #!/usr/bin/env python
-try:
-    import readline
-except:
-    pass
+########################################################################
+#
+# text menu for set menu stuff
+#
+########################################################################
 from src.core.setcore import bcolors, get_version, check_os, meta_path
 
 # grab version of SET
@@ -22,7 +23,6 @@ main_text = " Select from the menu:\n"
 main_menu = ['Social-Engineering Attacks',
              'Fast-Track Penetration Testing',
              'Third Party Modules',
-             'Update the Metasploit Framework',
              'Update the Social-Engineer Toolkit',
              'Update SET configuration',
              'Help, Credits, and About']
@@ -33,7 +33,6 @@ main = ['Spear-Phishing Attack Vectors',
         'Create a Payload and Listener',
         'Mass Mailer Attack',
         'Arduino-Based Attack Vector',
-        'SMS Spoofing Attack Vector',
         'Wireless Access Point Attack Vector',
         'QRCode Generator Attack Vector',
         'Powershell Attack Vectors',
@@ -62,7 +61,8 @@ webattack_menu = ['Java Applet Attack Method',
                   'Tabnabbing Attack Method',
                   'Web Jacking Attack Method',
                   'Multi-Attack Web Method',
-                  'Create or import a CodeSigning Certificate',
+                  'Full Screen Attack Method',
+		  'HTA Attack Method',
                   '0D']
 
 fasttrack_menu = ['Microsoft SQL Bruter',
@@ -117,9 +117,11 @@ The """ + bcolors.BOLD + """Credential Harvester""" + bcolors.ENDC + """ method 
 
 The """ + bcolors.BOLD + """TabNabbing""" + bcolors.ENDC + """ method will wait for a user to move to a different tab, then refresh the page to something different.
 
-The """ + bcolors.BOLD + """Web-Jacking Attack""" + bcolors.ENDC + """ method was introduced by white_sheep, Emgent and the Back|Track team. This method utilizes iframe replacements to make the highlighted URL link to appear legitimate however when clicked a window pops up then is replaced with the malicious link. You can edit the link replacement settings in the set_config if its too slow/fast.
+The """ + bcolors.BOLD + """Web-Jacking Attack""" + bcolors.ENDC + """ method was introduced by white_sheep, emgent. This method utilizes iframe replacements to make the highlighted URL link to appear legitimate however when clicked a window pops up then is replaced with the malicious link. You can edit the link replacement settings in the set_config if its too slow/fast.
 
-The """ + bcolors.BOLD + """Multi-Attack""" + bcolors.ENDC + """ method will add a combination of attacks through the web attack menu. For example you can utilize the Java Applet, Metasploit Browser, Credential Harvester/Tabnabbing, and the Man Left in the Middle attack all at once to see which is successful.
+The """ + bcolors.BOLD + """Multi-Attack""" + bcolors.ENDC + """ method will add a combination of attacks through the web attack menu. For example you can utilize the Java Applet, Metasploit Browser, Credential Harvester/Tabnabbing all at once to see which is successful.
+
+The """ + bcolors.BOLD + """HTA Attack""" + bcolors.ENDC + """ method will allow you to clone a site and perform powershell injection through HTA files which can be used for Windows-based powershell exploitation through the browser.
 """)
 
 webattack_vectors_menu = ['Web Templates',
@@ -239,22 +241,12 @@ infectious_text = """
 if operating_system != "windows":
     if msf_path != False:
         payload_menu_1 = [
-'Windows Shell Reverse_TCP               Spawn a command shell on victim and send back to attacker',
-'Windows Reverse_TCP Meterpreter         Spawn a meterpreter shell on victim and send back to attacker',
-'Windows Reverse_TCP VNC DLL             Spawn a VNC server on victim and send back to attacker',
-'Windows Bind Shell                      Execute payload and create an accepting port on remote system',
-'Windows Bind Shell X64                  Windows x64 Command Shell, Bind TCP Inline',
-'Windows Shell Reverse_TCP X64           Windows X64 Command Shell, Reverse TCP Inline',
-'Windows Meterpreter Reverse_TCP X64     Connect back to the attacker (Windows x64), Meterpreter',
-'Windows Meterpreter All Ports           Spawn a meterpreter shell and find a port home (every port)',
-'Windows Meterpreter Reverse HTTPS       Tunnel communication over HTTP using SSL and use Meterpreter',
-'Windows Meterpreter Reverse DNS         Use a hostname instead of an IP address and spawn Meterpreter',
+'Meterpreter Memory Injection (DEFAULT)  This will drop a meterpreter payload through PyInjector',
+'Meterpreter Multi-Memory Injection      This will drop multiple Metasploit payloads via memory',
 'SE Toolkit Interactive Shell            Custom interactive reverse toolkit designed for SET',
 'SE Toolkit HTTP Reverse Shell           Purely native HTTP shell with AES encryption support',
 'RATTE HTTP Tunneling Payload            Security bypass payload that will tunnel all comms over HTTP',
 'ShellCodeExec Alphanum Shellcode        This will drop a meterpreter payload through shellcodeexec',
-'PyInjector Shellcode Injection          This will drop a meterpreter payload through PyInjector',
-'MultiPyInjector Shellcode Injection     This will drop multiple Metasploit payloads via memory',
 'Import your own executable              Specify a path for your own executable\n']
 
 if operating_system == "windows" or msf_path == False:
@@ -275,8 +267,8 @@ payload_menu_2 = [
 'Windows Shell Reverse_TCP               Spawn a command shell on victim and send back to attacker',
 'Windows Reverse_TCP Meterpreter         Spawn a meterpreter shell on victim and send back to attacker',
 'Windows Reverse_TCP VNC DLL             Spawn a VNC server on victim and send back to attacker',
-'Windows Bind Shell                      Execute payload and create an accepting port on remote system.',
-'Windows Bind Shell X64                  Windows x64 Command Shell, Bind TCP Inline',
+#'Windows Bind Shell                      Execute payload and create an accepting port on remote system.',
+#'Windows Bind Shell X64                  Windows x64 Command Shell, Bind TCP Inline',
 'Windows Shell Reverse_TCP X64           Windows X64 Command Shell, Reverse TCP Inline',
 'Windows Meterpreter Reverse_TCP X64     Connect back to the attacker (Windows x64), Meterpreter',
 'Windows Meterpreter Egress Buster       Spawn a meterpreter shell and find a port home via multiple ports',
@@ -302,6 +294,7 @@ payload_menu_3 = [
 create_payloads_menu = [
 'SET Custom Written DLL Hijacking Attack Vector (RAR, ZIP)',
 'SET Custom Written Document UNC LM SMB Capture Attack',
+'MS14-017 Microsoft Word RTF Object Confusion (2014-04-01)',
 'Microsoft Windows CreateSizedDIBSECTION Stack Buffer Overflow',
 'Microsoft Word RTF pFragments Stack Buffer Overflow (MS10-087)',
 'Adobe Flash Player "Button" Remote Code Execution',
@@ -327,6 +320,13 @@ create_payloads_text = """
            ********** PAYLOADS **********\n"""
 
 browser_exploits_menu = [
+'Adobe Flash Player ByteArray Use After Free (2015-07-06)',
+'Adobe Flash Player Nellymoser Audio Decoding Buffer Overflow (2015-06-23)',
+'Adobe Flash Player Drawing Fill Shader Memory Corruption (2015-05-12)',
+'MS14-012 Microsoft Internet Explorer TextRange Use-After-Free (2014-03-11)',
+'MS14-012 Microsoft Internet Explorer CMarkup Use-After-Free (2014-02-13)',
+'Internet Explorer CDisplayPointer Use-After-Free (10/13/2013)',
+'Micorosft Internet Explorer SetMouseCapture Use-After-Free (09/17/2013)',
 'Java Applet JMX Remote Code Execution (UPDATED 2013-01-19)',
 'Java Applet JMX Remote Code Execution (2013-01-10)',
 'MS13-009 Microsoft Internet Explorer SLayoutRun Use-AFter-Free (2013-02-13)',

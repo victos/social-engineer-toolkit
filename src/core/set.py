@@ -136,14 +136,19 @@ try:
                         return_continue()
                         break
 
-                # Web Attack menu choice 9: Create or Import a CodeSigning Certificate
-                if attack_vector == '8':
-                    sys.path.append("src/html/unsigned")
-                    debug_msg(me, "importing 'src.html.unsigned.verified_sign'", 1)
+                # full screen attack vector
+                if attack_vector == '7':
+                    # dont need site cloner
+                    site_cloned = False
+                    # skip nat section and exit out
+                    choice3 = "-1"
+                    sys.path.append("src/webattack/fsattack")
+                    debug_msg(me, "importing 'src.webattack.fsaattack'", 1)
                     try:
-                        reload(verified_sign)
+                        reload(full)
                     except:
-                        import verified_sign
+                        import full
+
                 # Web Attack menu choice 9: Return to the Previous Menu
                 if attack_vector == '99': break
 
@@ -157,6 +162,19 @@ try:
                     return_continue()
                     break
 
+
+                ###############################################################
+                # HTA ATTACK VECTOR METHOD HERE
+                ###############################################################
+                if attack_vector == '8':
+                        from src.webattack.hta.main import *
+                        # update config
+                        update_options("ATTACK_VECTOR=HTA")
+                        gen_hta_cool_stuff()
+                        attack_vector = "hta"
+			print_status("Automatically starting Apache for you...")
+			subprocess.Popen("service apache2 start", shell=True).wait()
+
                 # Removed to delete MLITM
                 if attack_vector != "99999":
 
@@ -164,7 +182,7 @@ try:
                     #     USER INPUT: SHOW WEB ATTACK VECTORS MENU    #
                     ###################################################
 
-                    if attack_vector != "8":
+                    if attack_vector != "7":
                         debug_msg(me, "printing 'text.webattack_vectors_menu'", 5)
                         show_webvectors_menu = create_menu(text.webattack_vectors_text, text.webattack_vectors_menu)
                         print '  99) Return to Webattack Menu\n'
@@ -180,8 +198,9 @@ try:
 
                 try:
                     # write our attack vector to file to be called later
-                    os.chdir(definepath)
-                    filewrite = file(setdir + "/attack_vector","w")
+		    #print definepath()
+                    #os.chdir(definepath)
+                    filewrite = file(setdir + "/attack_vector", "w")
 
                     # webjacking and web templates are not allowed
                     if attack_vector == "5" and choice3 == "1":
@@ -247,7 +266,7 @@ try:
 
                     # pull ip address
                     if choice3 != "-1":
-                        fileopen = file("config/set_config", "r").readlines()
+                        fileopen = file("/etc/setoolkit/set.config", "r").readlines()
                         for line in fileopen:
                             line = line.rstrip()
                             match = re.search("AUTO_DETECT=ON", line)
@@ -271,56 +290,50 @@ try:
                                 if attack_vector != "harvester":
                                     if attack_vector != "tabnabbing":
                                         if attack_vector != "webjacking":
-                                            # this part is to determine if NAT/port forwarding is used
-                                            # if it is it'll prompt for additional questions
-                                            print_info("NAT/Port Forwarding can be used in the cases where your SET machine is")
-                                            print_info("not externally exposed and may be a different IP address than your reverse listener.")
-                                            nat_or_fwd = yesno_prompt('0', 'Are you using NAT/Port Forwarding [yes|no]')
-                                            if nat_or_fwd == "YES":
-                                                ipquestion = raw_input(setprompt(["2"], "IP address to SET web server (this could be your external IP or hostname)"))
-
-                                                filewrite2 = file(setdir + "/interface", "w")
-                                                filewrite2.write(ipquestion)
-                                                filewrite2.close()
-                                                # is your payload/listener on a different IP?
-                                                natquestion = yesno_prompt(["2"], "Is your payload handler (metasploit) on a different IP from your external NAT/Port FWD address [yes|no]")
-                                                if natquestion == 'YES':
-                                                    ipaddr = raw_input(setprompt(["2"], "IP address for the reverse handler (reverse payload)"))
-                                                if natquestion == "NO":
-                                                    ipaddr = ipquestion
-                                            # if you arent using NAT/Port FWD
-                                            if nat_or_fwd == "NO":
-                                                print_info("Enter the IP address of your interface IP or if your using an external IP, what")
-                                                print_info("will be used for the connection back and to house the web server (your interface address)")
-                                                ipaddr = raw_input(setprompt(["2"], "IP address or hostname for the reverse connection"))
-                                                # here we check if they are using a hostname else we loop through until they have a legit one
-                                                if validate_ip(ipaddr) == False:
-                                                    while 1:
-                                                        choice = raw_input(setprompt(["2"], "This is not an IP address. Are you using a hostname? [y/n] "))
-                                                        if choice == "" or choice.lower() == "y":
-                                                            print_status("Roger that. Using hostnames moving forward..")
-                                                            break
-                                                        else:
-                                                            ipaddr = raw_input(setprompt(["2"], "IP address for the reverse connection"))
-                                                            if validate_ip(ipaddr) == True: break
+					    if attack_vector != "hta":
+	                                            # this part is to determine if NAT/port forwarding is used
+	                                            # if it is it'll prompt for additional questions
+	                                            print_info("NAT/Port Forwarding can be used in the cases where your SET machine is")
+	                                            print_info("not externally exposed and may be a different IP address than your reverse listener.")
+	                                            nat_or_fwd = yesno_prompt('0', 'Are you using NAT/Port Forwarding [yes|no]')
+	                                            if nat_or_fwd == "YES":
+	                                                ipquestion = raw_input(setprompt(["2"], "IP address to SET web server (this could be your external IP or hostname)"))
+	
+	                                                filewrite2 = file(setdir + "/interface", "w")
+	                                                filewrite2.write(ipquestion)
+	                                                filewrite2.close()
+	                                                # is your payload/listener on a different IP?
+	                                                natquestion = yesno_prompt(["2"], "Is your payload handler (metasploit) on a different IP from your external NAT/Port FWD address [yes|no]")
+	                                                if natquestion == 'YES':
+	                                                    ipaddr = raw_input(setprompt(["2"], "IP address for the reverse handler (reverse payload)"))
+	                                                if natquestion == "NO":
+	                                                    ipaddr = ipquestion
+	                                            # if you arent using NAT/Port FWD
+	                                            if nat_or_fwd == "NO":
+	                                                print_info("Enter the IP address of your interface IP or if your using an external IP, what")
+	                                                print_info("will be used for the connection back and to house the web server (your interface address)")
+	                                                ipaddr = raw_input(setprompt(["2"], "IP address or hostname for the reverse connection"))
+	                                                # here we check if they are using a hostname else we loop through until they have a legit one
+	                                                if validate_ip(ipaddr) == False:
+	                                                    while 1:
+	                                                        choice = raw_input(setprompt(["2"], "This is not an IP address. Are you using a hostname? [y/n] "))
+	                                                        if choice == "" or choice.lower() == "y":
+	                                                            print_status("Roger that. Using hostnames moving forward..")
+	                                                            break
+	                                                        else:
+	                                                            ipaddr = raw_input(setprompt(["2"], "IP address for the reverse connection"))
+	                                                            if validate_ip(ipaddr) == True: break
 
                                 if attack_vector == "harvester" or attack_vector == "tabnabbing" or attack_vector == "webjacking":
                                     print_info("This option is used for what IP the server will POST to.")
                                     print_info("If you're using an external IP, use your external IP for this")
                                     ipaddr = raw_input(setprompt(["2"], "IP address for the POST back in Harvester/Tabnabbing"))
+				if check_options("IPADDR=") != 0: ipaddr = check_options("IPADDR=")
                                 update_options("IPADDR=" + ipaddr)
 
                         # if java applet attack
                         if attack_vector == "java":
-                            # Allow Self-Signed Certificates
-                            fileopen = file("config/set_config", "r").readlines()
-                            for line in fileopen:
-                                line = line.rstrip()
-                                match = re.search("SELF_SIGNED_APPLET=ON", line)
-                                if match:
-                                    sys.path.append("src/html/unsigned/")
-                                    debug_msg(me, "importing 'src.html.unsigned.self_sign'", 1)
-                                    import self_sign
+                            applet_choice()
 
                     # Select SET quick setup
                     if choice3 == '1':
@@ -351,14 +364,17 @@ try:
                             reload(arp)
                         except:
                             import arp
+
                         # actual website attack here
                         # web_server.py is main core
                         sys.path.append("src/html/")
+
                         # clean up stale file
                         if os.path.isfile(setdir + "/cloner.failed"):
                             os.remove(setdir + "/cloner.failed")
 
                         site_cloned = True
+
                         debug_msg(me, "line 375: importing 'src.webattack.web_clone.cloner'", 1)
                         try: reload(src.webattack.web_clone.cloner)
                         except: import src.webattack.web_clone.cloner
@@ -397,9 +413,10 @@ try:
                                         if attack_vector != "webjacking":
                                             if attack_vector != "multiattack":
                                                 if attack_vector != "profiler":
-                                                    # spawn web server here
-                                                    debug_msg(me, "importing 'src.html.spawn'", 1)
-                                                    import src.html.spawn
+						    if attack_vector != "hta":
+	                                                    # spawn web server here
+	                                                    debug_msg(me, "importing 'src.html.spawn'", 1)
+	                                                    import src.html.spawn
 
 
                             # multi attack vector here
@@ -436,6 +453,10 @@ try:
                         match2 = re.search("facebook.com", URL)
                         if match2:
                             URL = ("https://login.facebook.com/login.php")
+
+                        # changed based on new landing page for gmail.com
+                        match3 = re.search("gmail.com", URL)
+                        if match3: URL = ("https://accounts.google.com")
 
                         filewrite.write("\nURL=%s" % (URL))
                         filewrite.close()
@@ -495,6 +516,7 @@ try:
                                         import tabnabbing
                                 sys.path.append("src/webattack/harvester")
                                 debug_msg(me, "importing 'src.webattack.harvester.harvester'", 1)
+
                                 try:
                                     reload(harvester)
                                 except:
@@ -514,12 +536,13 @@ try:
                                 if attack_vector != "tabnabbing":
                                     if attack_vector != "multiattack":
                                         if attack_vector != "webjacking":
-                                            sys.path.append("src/html")
-                                            debug_msg(me, "importing 'src.html.spawn'", 1)
-                                            try:
-                                                reload(spawn)
-                                            except:
-                                                import spawn
+						if attack_vector != "hta":
+	                                            sys.path.append("src/html")
+	                                            debug_msg(me, "importing 'src.html.spawn'", 1)
+	                                            try:
+	                                                reload(spawn)
+	                                            except:
+	                                                import spawn
 
                     # Import your own site
                     if choice3 == '3':
@@ -724,64 +747,30 @@ try:
 
             # if choice is standard payload
             if infectious_menu_choice == "2":
-                filewrite = file(setdir + "/standardpayload.file", "w")
-                filewrite.write("standardpayload=on")
-                filewrite.close()
-                #sys.path.append("src/core/payloadgen/")
-                #try: reload(create_payloads)
-                #except: import create_payloads
-                debug_msg(me, "importing 'src.core.payloadgen.create_payloads'", 1)
-                import src.core.payloadgen.create_payloads
+		# trigger set options for infectious media
+		update_options("INFECTION_MEDIA=ON")
+		try: import src.core.payloadgen.solo
+		except: reload(src.core.payloadgen.solo)
 
+	    # if we aren't exiting, then launch autorun
             if infectious_menu_choice != "99":
-                # import the autorun stuff
-                sys.path.append("src/autorun/")
-                debug_msg(me, "importing 'src.autorun.autorun'", 1)
-                try:
-                    reload(autorun)
-                except:
-                    import autorun
+		try: import src.autorun.autolaunch
+		except: reload(src.autorun.autolaunch)
 
-            if infectious_menu_choice == "2":
-                sys.path.append("src/core/payloadgen/")
-                debug_msg(me, "importing 'src.core.payloadgen.solo'", 1)
-                try:
-                    reload(solo)
-                except:
-                    import solo
+
         #
         #
         # Main Menu choice 4: Create a Payload and Listener
         #
         #
         if main_menu_choice == '4':
-            filewrite = file(setdir + "/payloadgen", "w")
-            filewrite.write("payloadgen=solo")
-            filewrite.close()
-            debug_msg(me, "importing 'src.core.payloadgen.create_payloads'", 1)
-            try: import src.core.payloadgen.create_payloads
-            except: reload(src.core.payloadgen.create_payloads)
-            print_status("Your payload is now in the root directory of SET as payload.exe")
-            if os.path.isfile(setdir + "/meterpreter.alpha"):
-                print "[*] Saving alphanumeric shellcode in root directory of SET as meterpreter.alpha"
-                shutil.copyfile(setdir + "/meterpreter.alpha", definepath + "/meterpreter.alpha")
-
-            # if we didn't select the SET interactive shell or RATTE
-            if not os.path.isfile(setdir + "/set.payload"):
-                upx_check = check_config("UPX_ENCODE=")
-                if upx_check.lower() == "on":
-	                upx("msf.exe")
-
+	    update_options("PAYLOADGEN=SOLO")
+	    import src.core.payloadgen.solo
+	    #try: import src.core.payloadgen.solo
+	    #except: reload(src.core.payloadgen.solo)
             # if the set payload is there
             if os.path.isfile(setdir + "/msf.exe"):
                 shutil.copyfile(setdir + "/msf.exe", "payload.exe")
-
-            sys.path.append("src/core/payloadgen/")
-            debug_msg(me, "importing 'src.core.payloadgen.solo'", 1)
-            try:
-                reload(solo)
-            except:
-                import solo
             return_continue()
 
         # Main Menu choice 5: Mass Mailer Attack
@@ -859,8 +848,8 @@ try:
                 # if we are doing the X10 Arduino Sniffer
                 if teensy_menu_choice == "10":
                     print_status("Generating the Arduino sniffer and libraries pde..")
-                    if not os.path.isdir(setdir + "/reports/arduino_sniffers"):
-                        os.makedirs(setdir + "/reports/arduino_sniffers")
+                    if not os.path.isdir(setdir + "/reports/arduino_sniffer"):
+                        os.makedirs(setdir + "/reports/arduino_sniffer")
                     shutil.copyfile("src/teensy/x10/x10_sniffer.pde", setdir + "/reports/arduino_sniffer/x10_sniffer.pde")
                     shutil.copyfile("src/teensy/x10/libraries.zip", setdir + "/reports/arduino_sniffer/libraries.zip")
                     print_status("Arduino sniffer files and libraries exported to ~/.set/reports/arduino_sniffer")
@@ -887,7 +876,7 @@ try:
         #
         # Main Menu choice 8: Wireless Attack Point Attack Vector
         #
-        if main_menu_choice == '8':
+        if main_menu_choice == '7':
 
             if operating_system == "windows":
                 print_warning("Sorry. The wireless attack vector is not yet supported in Windows.")
@@ -899,7 +888,7 @@ try:
                 airbase_path = ""
                 dnsspoof_path = ""
                 # need to pull the SET config file
-                fileopen = file("config/set_config", "r")
+                fileopen = file("/etc/setoolkit/set.config", "r")
                 for line in fileopen:
                     line = line.rstrip()
                     match = re.search("AIRBASE_NG_PATH=", line)
@@ -970,7 +959,7 @@ try:
 
 
         # Main Menu choice 9: QRCode Generator
-        if main_menu_choice == '9':
+        if main_menu_choice == '8':
             try:
                 from PIL import Image, ImageDraw
                 from src.qrcode.qrgenerator import *
@@ -981,28 +970,27 @@ When you have the QRCode Generated, select an additional attack vector within SE
 deploy the QRCode to your victim. For example, generate a QRCode of the SET Java Applet
 and send the QRCode via a mailer.
 """
-                url = raw_input("Enter the URL you want the QRCode to go to: ")
-                # if the reports directory does not exist then create it
-                if not os.path.isdir("%s/reports" % (setdir)):
-                    os.makedirs("%s/reports" % (setdir))
-                gen_qrcode(url)
-                pause = raw_input("QRCode generated.")
-                return_continue()
+                url = raw_input("Enter the URL you want the QRCode to go to (99 to exit): ")
+                if url != "99":
+                    # if the reports directory does not exist then create it
+                    if not os.path.isdir("%s/reports" % (setdir)):
+                        os.makedirs("%s/reports" % (setdir))
+                    gen_qrcode(url)
+                    return_continue()
 
             except ImportError:
-                print_error("This module requires python-imaging to work properly.")
-                print_error("In Ubuntu do apt-get install python-imaging")
-                print_error("Else refer to here for installation: http://code.google.com/appengine/docs/python/images/installingPIL.html")
-                return_continue()
+                    print_error("This module requires python-imaging to work properly.")
+                    print_error("In Ubuntu do apt-get install python-imaging")
+                    print_error("Else refer to here for installation: http://code.google.com/appengine/docs/python/images/installingPIL.html")
+                    return_continue()
 
         # Main Menu choice 10: PowerShell Attacks
-        if main_menu_choice == '10':
-            #show_powershell_menu = create_menu(text.powershell_text, text.powershell_menu)
-            #powershell_menu_choice = raw_input(setprompt(["1"], ""))
-            import src.powershell.powershell
+        if main_menu_choice == '9':
+            try: import src.powershell.powershell
+            except: reload(src.powershell.powershell)
 
         # Main Menu choice 11: Third Party Modules
-        if main_menu_choice == '11':
+        if main_menu_choice == '10':
             sys.path.append("src/core")
             debug_msg(me, "importing 'src.core.module_handler'", 1)
             try:
@@ -1013,39 +1001,6 @@ and send the QRCode via a mailer.
         # Main Menu choice 99: Exit the Social-Engineer Toolkit
         if main_menu_choice == '99':
             break
-
-        # Main Menu choice 7: SMS Spoofing Attack Vector
-        if main_menu_choice == '7':
-            sms_menu_choice = '0'
-            while sms_menu_choice != '3':
-
-            ###################################################
-            #        USER INPUT: SHOW SMS MENU                #
-            ###################################################
-                debug_msg(me, "printing 'text.sms_attack_text'", 5)
-                show_sms_menu = create_menu(text.sms_attack_text, text.sms_attack_menu)
-                sms_menu_choice = raw_input(setprompt(["7"], ""))
-
-                if sms_menu_choice == 'exit':
-                    exit_set()
-
-                if sms_menu_choice == '1':
-                    sys.path.append("src/sms/client/")
-                    debug_msg(me, "importing 'src.sms.client.sms_client'", 1)
-                    try:
-                        reload(sms_client)
-                    except:
-                        import sms_client
-
-                if sms_menu_choice == '2':
-                    sys.path.append("src/sms/client/")
-                    debug_msg(me, "importing 'src.sms.client.custom_sms_template'", 1)
-                    try:
-                        reload(custom_sms_template)
-                    except:
-                        import custom_sms_template
-
-                if sms_menu_choice == '99': break
 
 # handle keyboard interrupts
 except KeyboardInterrupt:

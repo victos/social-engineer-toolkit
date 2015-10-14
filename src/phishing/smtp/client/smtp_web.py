@@ -10,10 +10,16 @@ import glob
 import random
 import time
 import base64
+from cStringIO import StringIO
 from email.MIMEMultipart import MIMEMultipart
 from email.MIMEBase import MIMEBase
 from email.MIMEText import MIMEText
+from email.header import Header
+from email.generator import Generator
+from email import Charset
 from email import Encoders
+
+Charset.add_charset('utf-8', Charset.BASE64, Charset.BASE64, 'utf-8')
 
 # default the email messages to plain text
 # unless otherwise specified
@@ -30,7 +36,7 @@ definepath = os.getcwd()
 # DEFINE SENDMAIL CONFIG and WEB ATTACK
 sendmail=0
 
-sendmail_file=file("%s/config/set_config" % (definepath),"r").readlines()
+sendmail_file=file("/etc/setoolkit/set.config","r").readlines()
 for line in sendmail_file:
     # strip carriage returns
     line=line.rstrip()
@@ -54,8 +60,8 @@ for line in sendmail_file:
                 port = ("25")
                 # Flip sendmail switch to get rid of some questions
                 sendmail=1
-                # just throw user and password to blank, needed for defining below
-                user=''
+                # just throw provideruser and password to blank, needed for defining below
+                provideruser=''
                 pwd=''
 
     # Search for SMTP provider we will be using
@@ -145,17 +151,18 @@ if option1 != "99":
     counter=0
     # Specify mail Option Here
     if relay == '1':
-        user = raw_input(setprompt(["1"], "Your %s email address" % (email_provider)))
-        from_address = raw_input(setprompt(["1"], "The FROM NAME the user will see"))
-        user1 = user
+        provideruser = raw_input(setprompt(["1"], "Your %s email address" % (email_provider)))
+	from_address = provideruser
+        from_displayname = raw_input(setprompt(["1"], "The FROM NAME the user will see"))
         pwd = getpass.getpass("Email password: ")
 
     # Specify Open-Relay Option Here    
     if relay == '2':
-        user1 = raw_input(setprompt(["1"], "From address (ex: moo@example.com)"))
-        from_address = raw_input(setprompt(["1"], "The FROM NAME the user will see"))
+        from_address = raw_input(setprompt(["1"], "From address (ex: moo@example.com)"))
+        from_displayname = raw_input(setprompt(["1"], "The FROM NAME the user will see"))
         if sendmail==0:
-            user = raw_input(setprompt(["1"], "Username for open-relay [blank]"))
+            # Ask for a username and password if we aren't using sendmail
+            provideruser = raw_input(setprompt(["1"], "Username for open-relay [blank]"))
             pwd =  getpass.getpass("Password for open-relay [blank]: ")
 
         if sendmail==0:
@@ -213,11 +220,11 @@ if option1 != "99":
             try:
     
                 body+=("\n")
-                body_1 =raw_input("Next line of the body: ")
+                body_1 = raw_input("Next line of the body: ")
                 if body_1 == "END":
                     break
                 else:
-                    body_1 = body + body_1
+                    body = body + body_1
 
             # except KeyboardInterrupts (control-c) and pass through.
             except KeyboardInterrupt:
@@ -240,16 +247,20 @@ if option1 != "99":
 def mail(to, subject, prioflag1, prioflag2, text):
 
     msg = MIMEMultipart()
-    msg['From'] = from_address
+    msg['From'] = str(Header(from_displayname, 'UTF-8').encode() + ' <' + from_address + '> ')
     msg['To'] = to
     msg['X-Priority'] = prioflag1
     msg['X-MSMail-Priority'] = prioflag2
-    msg['Subject'] = subject
+    msg['Subject'] = Header(subject, 'UTF-8').encode()
 
-    body_type=MIMEText(text, "%s" % (message_flag))
+    body_type=MIMEText(text, "%s" % (message_flag), 'UTF-8')
     msg.attach(body_type)
 
     mailServer = smtplib.SMTP(smtp, port)
+
+    io = StringIO()
+    msggen = Generator(io, False)
+    msggen.flatten(msg)
 
     if sendmail == 0:
 
@@ -263,15 +274,15 @@ def mail(to, subject, prioflag1, prioflag2, text):
             else: mailServer.ehlo()
 
     try:
-        if user != "" or pwd != "":
-            mailServer.login(user, pwd)
-            mailServer.sendmail(user, to, msg.as_string())
+        if provideruser != "" or pwd != "":
+            mailServer.login(provideruser, pwd)
+            mailServer.sendmail(from_address, to, io.getvalue())
 
     except:
         # try logging in with base64 encoding here
         import base64
         try:
-            mailServer.docmd("AUTH LOGIN", base64.b64encode(user))
+            mailServer.docmd("AUTH LOGIN", base64.b64encode(provideruser))
             mailServer.docmd(base64.b64encode(pwd), "")
 
         # except exceptions and print incorrect passowrd
@@ -280,7 +291,7 @@ def mail(to, subject, prioflag1, prioflag2, text):
             return_continue()
 
     if sendmail == 1:
-        mailServer.sendmail,(user, to, msg.as_string())
+        mailServer.sendmail(from_address, to, io.getvalue())
 
 # if we specified a single address
 if option1 == '1':

@@ -14,10 +14,17 @@ import pexpect
 import time
 from src.core.setcore import *
 from src.core.menu import text
-from config.set_config import AIRBASE_NG_PATH as airbase_path
-from config.set_config import ACCESS_POINT_SSID as access_point
-from config.set_config import AP_CHANNEL as ap_channel
-from config.set_config import DNSSPOOF_PATH as dnsspoof_path
+
+sys.path.append("/etc/setoolkit")
+from set_config import AIRBASE_NG_PATH as airbase_path
+from set_config import ACCESS_POINT_SSID as access_point
+from set_config import AP_CHANNEL as ap_channel
+from set_config import DNSSPOOF_PATH as dnsspoof_path
+sys.path.append(definepath)
+
+if not os.path.isfile("/etc/init.d/isc-dhcp-server"):
+    print_warning("isc-dhcp-server does not appear to be installed.")
+    print_warning("apt-get install isc-dhcp-server to install it. Things may fail now.")
 
 if not os.path.isfile(dnsspoof_path):
     if os.path.isfile("/usr/sbin/dnsspoof"):
@@ -30,14 +37,14 @@ if not os.path.isfile(airbase_path):
     airbase_path = "src/wireless/airbase-ng"
     print_info("using SET's local airbase-ng binary")
 
-print_info("For this attack to work properly, we must edit the dhcp3-server file to include our wireless interface.")
-print_info("""This will allow dhcp3 to properly assign IPs. (INTERFACES="at0")""")
+print_info("For this attack to work properly, we must edit the isc-dhcp-server file to include our wireless interface.")
+print_info("""This will allow isc-dhcp-server to properly assign IPs. (INTERFACES="at0")""")
 print("")
 print_status("SET will now launch nano to edit the file.")
 print_status("Press ^X to exit nano and don't forget to save the updated file!")
-print_warning("If you receive an empty file in nano, please check the path of your dhcp3-server file!")
+print_warning("If you receive an empty file in nano, please check the path of your isc-dhcp-server file!")
 return_continue()
-subprocess.Popen("nano /etc/default/dhcp3-server", shell=True).wait()
+subprocess.Popen("nano /etc/dhcp/dhcpd.conf", shell=True).wait()
 
 # DHCP SERVER CONFIG HERE
 dhcp_config1 = ("""
@@ -142,7 +149,7 @@ if dhcptun==2:
 
 # starts a dhcp server
 print_status("Starting the DHCP server on a seperate child thread...")
-child2 = pexpect.spawn("dhcpd3 -q -cf %s/dhcp.conf -pf /var/run/dhcp3-server/dhcpd.pid at0" % (setdir))
+child2 = pexpect.spawn("service isc-dhcp-server start")
 
 # starts ip_forwarding
 print_status("Starting IP Forwarding...")

